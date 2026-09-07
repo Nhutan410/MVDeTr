@@ -76,13 +76,14 @@ def main(args):
                              pin_memory=True, worker_init_fn=seed_worker)
 
     # logging
+    run_timestamp = f'{datetime.datetime.today():%Y-%m-%d_%H-%M-%S}'
     if args.resume is None:
         logdir = f'logs/{args.dataset}/{"debug_" if is_debug else ""}{"SS_" if args.semi_supervised else ""}' \
                  f'{"aug_" if args.augmentation else ""}{args.world_feat}_lr{args.lr}_baseR{args.base_lr_ratio}_' \
                  f'neck{args.bottleneck_dim}_out{args.outfeat_dim}_' \
                  f'alpha{args.alpha}_id{args.id_ratio}_drop{args.dropout}_dropcam{args.dropcam}_' \
                  f'worldRK{args.world_reduce}_{args.world_kernel_size}_imgRK{args.img_reduce}_{args.img_kernel_size}_' \
-                 f'{datetime.datetime.today():%Y-%m-%d_%H-%M-%S}'
+                 f'{run_timestamp}'
         os.makedirs(logdir, exist_ok=True)
         shutil.copytree('./multiview_detector', logdir + '/scripts/multiview_detector', dirs_exist_ok=True)
         for script in os.listdir('.'):
@@ -99,7 +100,7 @@ def main(args):
     wandb_config = dict(vars(args))
     wandb_config['model'] = 'MVDeTr'
     wandb_config['logdir'] = logdir
-    wandb_run_name = f"{args.dataset}_{args.world_feat}_{logdir.split('_')[-1]}"
+    wandb_run_name = f"{args.dataset}_{args.world_feat}_{run_timestamp}"
     wandb.init(entity=WANDB_ENTITY, project=WANDB_PROJECT, name=wandb_run_name,
                group=args.dataset, job_type='eval' if args.resume is not None else 'train',
                config=wandb_config)
