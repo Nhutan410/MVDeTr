@@ -101,9 +101,15 @@ def main(args):
     wandb_config['model'] = 'MVDeTr'
     wandb_config['logdir'] = logdir
     wandb_run_name = f"{args.dataset}_{args.world_feat}_{run_timestamp}"
-    wandb.init(entity=WANDB_ENTITY, project=WANDB_PROJECT, name=wandb_run_name,
-               group=args.dataset, job_type='eval' if args.resume is not None else 'train',
-               config=wandb_config)
+    wandb_run = wandb.init(entity=WANDB_ENTITY, project=WANDB_PROJECT, name=wandb_run_name,
+                           group=args.dataset, job_type='eval' if args.resume is not None else 'train',
+                           config=wandb_config)
+    # force 'epoch' as the x-axis for every train/validation metric (matches x23d8/MVDet's
+    # define_metric setup), so both models' charts line up on the same axis instead of wandb's
+    # default global step count (which differs since this repo also logs per-batch inside epochs).
+    wandb_run.define_metric('epoch')
+    for _wandb_namespace in ('train/*', 'validation/*'):
+        wandb_run.define_metric(_wandb_namespace, step_metric='epoch')
 
     # model
     model = MVDeTr(train_set, args.arch, world_feat_arch=args.world_feat,
@@ -151,8 +157,8 @@ def main(args):
             test_loss_s.append(test_loss)
             test_moda_s.append(moda)
             draw_curve(os.path.join(logdir, 'learning_curve.jpg'), x_epoch, train_loss_s, test_loss_s, test_moda_s)
-            wandb.log({'epoch': epoch, 'train/epoch_loss': train_loss, 'test/epoch_loss': test_loss,
-                       'test/moda': moda, 'lr': optimizer.param_groups[0]['lr']})
+            # train/loss, train/learning_rate, validation/* already logged inside
+            # trainer.train()/trainer.test() -- no separate wandb.log needed here.
             torch.save(model.state_dict(), os.path.join(logdir, 'MultiviewDetector.pth'))
     else:
         model.load_state_dict(torch.load(f'logs/{args.dataset}/{args.resume}/MultiviewDetector.pth'))

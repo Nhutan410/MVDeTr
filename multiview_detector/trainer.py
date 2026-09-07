@@ -100,7 +100,10 @@ class PerspectiveTrainer(BaseTrainer):
                                'train/heatmap_max': world_heatmap.max().item()})
                 pass
         if wandb.run is not None:
-            wandb.log({'train/epoch': epoch, 'train/epoch_avg_loss': losses / len(dataloader)})
+            # 'train/loss' + 'train/learning_rate' (not 'train/epoch_avg_loss') to match
+            # the key names x23d8/MVDet logs for the same metrics.
+            wandb.log({'epoch': epoch, 'train/loss': losses / len(dataloader),
+                       'train/learning_rate': optimizer.param_groups[0]['lr']})
         return losses / len(dataloader)
 
     def test(self, epoch, dataloader, res_fpath=None, visualize=False):
@@ -169,8 +172,10 @@ class PerspectiveTrainer(BaseTrainer):
                                                      dataloader.dataset.base.__name__)
             print(f'moda: {moda:.1f}%, modp: {modp:.1f}%, prec: {precision:.1f}%, recall: {recall:.1f}%')
             if wandb.run is not None:
-                log_dict = {'test/moda': moda, 'test/modp': modp, 'test/precision': precision,
-                            'test/recall': recall}
+                # namespace 'validation/*' + '_percent' key names to match x23d8/MVDet
+                log_dict = {'validation/moda_percent': moda, 'validation/modp_percent': modp,
+                            'validation/detection_precision_percent': precision,
+                            'validation/detection_recall_percent': recall}
                 if epoch is not None:
                     log_dict['epoch'] = epoch
                 wandb.log(log_dict)
@@ -179,7 +184,7 @@ class PerspectiveTrainer(BaseTrainer):
 
         print(f'Test, loss: {losses / len(dataloader):.6f}, Time: {t_epoch:.3f}')
         if wandb.run is not None:
-            log_dict = {'test/epoch_avg_loss': losses / len(dataloader), 'test/time_sec': t_epoch}
+            log_dict = {'validation/loss': losses / len(dataloader), 'validation/duration_seconds': t_epoch}
             if epoch is not None:
                 log_dict['epoch'] = epoch
             wandb.log(log_dict)
