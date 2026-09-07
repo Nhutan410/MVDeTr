@@ -4,12 +4,12 @@ os.environ['OMP_NUM_THREADS'] = '1'
 import argparse
 import sys
 import shutil
-from distutils.dir_util import copy_tree
 import datetime
 import tqdm
 import random
 import numpy as np
 import torch
+import wandb
 from torch.cuda.amp import GradScaler
 from torch import optim
 from torch.utils.data import DataLoader
@@ -19,6 +19,9 @@ from multiview_detector.utils.logger import Logger
 from multiview_detector.utils.draw_curve import draw_curve
 from multiview_detector.utils.str2bool import str2bool
 from multiview_detector.trainer import PerspectiveTrainer
+
+WANDB_ENTITY = 'GFA26AI02'
+WANDB_PROJECT = 'baseline-expriments'
 
 
 def main(args):
@@ -81,7 +84,7 @@ def main(args):
                  f'worldRK{args.world_reduce}_{args.world_kernel_size}_imgRK{args.img_reduce}_{args.img_kernel_size}_' \
                  f'{datetime.datetime.today():%Y-%m-%d_%H-%M-%S}'
         os.makedirs(logdir, exist_ok=True)
-        copy_tree('./multiview_detector', logdir + '/scripts/multiview_detector')
+        shutil.copytree('./multiview_detector', logdir + '/scripts/multiview_detector', dirs_exist_ok=True)
         for script in os.listdir('.'):
             if script.split('.')[-1] == 'py':
                 dst_file = os.path.join(logdir, 'scripts', os.path.basename(script))
@@ -92,6 +95,14 @@ def main(args):
     print(logdir)
     print('Settings:')
     print(vars(args))
+
+    wandb_config = dict(vars(args))
+    wandb_config['model'] = 'MVDeTr'
+    wandb_config['logdir'] = logdir
+    wandb_run_name = f"{args.dataset}_{args.world_feat}_{logdir.split('_')[-1]}"
+    wandb.init(entity=WANDB_ENTITY, project=WANDB_PROJECT, name=wandb_run_name,
+               group=args.dataset, job_type='eval' if args.resume is not None else 'train',
+               config=wandb_config)
 
     # model
     model = MVDeTr(train_set, args.arch, world_feat_arch=args.world_feat,
@@ -139,6 +150,8 @@ def main(args):
             test_loss_s.append(test_loss)
             test_moda_s.append(moda)
             draw_curve(os.path.join(logdir, 'learning_curve.jpg'), x_epoch, train_loss_s, test_loss_s, test_moda_s)
+            wandb.log({'epoch': epoch, 'train/epoch_loss': train_loss, 'test/epoch_loss': test_loss,
+                       'test/moda': moda, 'lr': optimizer.param_groups[0]['lr']})
             torch.save(model.state_dict(), os.path.join(logdir, 'MultiviewDetector.pth'))
     else:
         model.load_state_dict(torch.load(f'logs/{args.dataset}/{args.resume}/MultiviewDetector.pth'))
@@ -180,6 +193,10 @@ if __name__ == '__main__':
     parser.add_argument('--world_kernel_size', type=int, default=10)
     parser.add_argument('--img_reduce', type=int, default=12)
     parser.add_argument('--img_kernel_size', type=int, default=10)
+    parser.add_argument('--annotation_drop_ratio', type=float, default=0.0,
+                        help='fraction of training annotations to drop for partial-supervision '
+                             'experiments; logged to wandb config, no effect yet at full-supervision '
+                             'baseline stage')
 
     args = parser.parse_args()
 

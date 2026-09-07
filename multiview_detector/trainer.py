@@ -2,6 +2,7 @@ import time
 import os
 import numpy as np
 import torch
+import wandb
 from torch import nn
 from torch.cuda.amp import autocast
 import matplotlib.pyplot as plt
@@ -93,7 +94,13 @@ class PerspectiveTrainer(BaseTrainer):
                 t_epoch = t1 - t0
                 print(f'Train Epoch: {epoch}, Batch:{(batch_idx + 1)}, loss: {losses / (batch_idx + 1):.6f}, '
                       f'Time: {t_epoch:.1f}, maxima: {world_heatmap.max():.3f}')
+                if wandb.run is not None:
+                    wandb.log({'train/batch_loss': losses / (batch_idx + 1), 'train/epoch': epoch,
+                               'train/batch': batch_idx + 1, 'train/batch_time_sec': t_epoch,
+                               'train/heatmap_max': world_heatmap.max().item()})
                 pass
+        if wandb.run is not None:
+            wandb.log({'train/epoch': epoch, 'train/epoch_avg_loss': losses / len(dataloader)})
         return losses / len(dataloader)
 
     def test(self, epoch, dataloader, res_fpath=None, visualize=False):
@@ -161,10 +168,21 @@ class PerspectiveTrainer(BaseTrainer):
                                                      os.path.abspath(dataloader.dataset.gt_fpath),
                                                      dataloader.dataset.base.__name__)
             print(f'moda: {moda:.1f}%, modp: {modp:.1f}%, prec: {precision:.1f}%, recall: {recall:.1f}%')
+            if wandb.run is not None:
+                log_dict = {'test/moda': moda, 'test/modp': modp, 'test/precision': precision,
+                            'test/recall': recall}
+                if epoch is not None:
+                    log_dict['epoch'] = epoch
+                wandb.log(log_dict)
         else:
             moda = 0
 
         print(f'Test, loss: {losses / len(dataloader):.6f}, Time: {t_epoch:.3f}')
+        if wandb.run is not None:
+            log_dict = {'test/epoch_avg_loss': losses / len(dataloader), 'test/time_sec': t_epoch}
+            if epoch is not None:
+                log_dict['epoch'] = epoch
+            wandb.log(log_dict)
 
         return losses / len(dataloader), moda
 

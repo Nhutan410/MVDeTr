@@ -77,3 +77,15 @@ This repo includes support for view coherent data augmentation, which applies af
 
 ### Pre-trained models
 You can download the checkpoints at this [link](https://1drv.ms/u/s!AtzsQybTubHfhNRDo-mUXOWPd3Di4Q?e=monHmQ).
+
+## Fork notes (Capstone: MVDet-PS reproduction)
+This fork bakes in the fixes needed to run on current Kaggle/Colab images (Python 3.12, NumPy 2.x,
+kornia 0.8.x) and logs every run to [Weights & Biases](https://wandb.ai/GFA26AI02/baseline-expriments):
+- `np.float`/`np.int`/`np.bool`/`np.object`/`np.str` aliases replaced with builtins (removed in NumPy 1.24+).
+- `distutils.dir_util.copy_tree` replaced with `shutil.copytree(..., dirs_exist_ok=True)` (`distutils` removed in Python 3.12).
+- `kornia.warp_perspective` calls updated to `kornia.geometry.transform.warp_perspective` (moved namespace in kornia 0.8.x).
+- `main.py`/`trainer.py` call `wandb.init(entity="GFA26AI02", project="baseline-expriments", ...)` and `wandb.log(...)` at every point that used to only `print(...)` (batch/epoch loss, moda/modp/precision/recall, lr, timing). Set `WANDB_API_KEY` in the environment before running; no key is hardcoded here.
+- `--annotation_drop_ratio` (default `0.0`) added as a placeholder CLI arg, logged to the wandb config, for upcoming partial-annotation experiments.
+
+The deformable-attention CUDA extension in `multiview_detector/models/ops` still needs to be built
+per-environment (`bash make.sh`) — it is not (and should not be) committed as a prebuilt binary.
