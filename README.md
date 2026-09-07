@@ -84,6 +84,7 @@ kornia 0.8.x) and logs every run to [Weights & Biases](https://wandb.ai/GFA26AI0
 - `np.float`/`np.int`/`np.bool`/`np.object`/`np.str` aliases replaced with builtins (removed in NumPy 1.24+).
 - `distutils.dir_util.copy_tree` replaced with `shutil.copytree(..., dirs_exist_ok=True)` (`distutils` removed in Python 3.12).
 - `kornia.warp_perspective` calls updated to `kornia.geometry.transform.warp_perspective` (moved namespace in kornia 0.8.x).
+- `multiview_detector/models/ops/src/cuda/ms_deform_attn_cuda.cu` updated for recent libtorch/CUDA (e.g. CUDA 12.8 images): `value.type()` -> `value.scalar_type()` in the `AT_DISPATCH_FLOATING_TYPES` calls, and `Tensor::data<T>()` -> `Tensor::data_ptr<T>()` (both removed/broken on current PyTorch).
 - `main.py`/`trainer.py` call `wandb.init(entity="GFA26AI02", project="baseline-expriments", ...)` and `wandb.log(...)` at every point that used to only `print(...)` (batch/epoch loss, moda/modp/precision/recall, lr, timing). Set `WANDB_API_KEY` in the environment before running; no key is hardcoded here.
 - `--annotation_drop_ratio` (default `0.0`) added as a placeholder CLI arg, logged to the wandb config, for upcoming partial-annotation experiments.
 
