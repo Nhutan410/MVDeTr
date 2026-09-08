@@ -115,11 +115,17 @@ class frameDataset(VisionDataset):
                                                       (pedestrian['views'][cam]))
                                 img_pids[cam].append(self.pid_dict[pedestrian['personID']])
                                 num_imgs_bbox += 1
-                self.world_gt[frame] = (np.array(world_pts), np.array(world_pids))
+                # reshape keeps the arrays 2D when a frame/camera has no annotation left at all:
+                # np.array([]) is shape (0,), which breaks random_affine's bboxs[:, 2] and
+                # world_pt_s[:, 0] downstream. Never triggered by the fully annotated datasets
+                # (every camera sees somebody in every frame), but partial-annotation runs
+                # (--annotation_drop_ratio) do empty out a camera now and then. No-op otherwise.
+                self.world_gt[frame] = (np.array(world_pts).reshape([-1, 2]), np.array(world_pids))
                 self.imgs_gt[frame] = {}
                 for cam in range(self.num_cam):
                     # x1y1x2y2
-                    self.imgs_gt[frame][cam] = (np.array(img_bboxs[cam]), np.array(img_pids[cam]))
+                    self.imgs_gt[frame][cam] = (np.array(img_bboxs[cam]).reshape([-1, 4]),
+                                                np.array(img_pids[cam]))
                 self.keeps[frame] = keep
 
         print(f'all: pid: {len(self.pid_dict)}, frame: {num_frame}, keep ratio: {num_keep / num_all:.3f}\n'
