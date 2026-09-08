@@ -100,7 +100,11 @@ def main(args):
     wandb_config = dict(vars(args))
     wandb_config['model'] = 'MVDeTr'
     wandb_config['logdir'] = logdir
-    wandb_run_name = f"{args.dataset}_{args.world_feat}_{run_timestamp}"
+    # tag the run name with the drop ratio (e.g. '_drop20') so partial-supervision runs are
+    # distinguishable in the Runs list without opening each run's config; baseline (ratio 0) keeps
+    # the old untagged name so it still matches earlier full-supervision runs by eye.
+    drop_tag = f'_drop{round(args.annotation_drop_ratio * 100)}' if args.annotation_drop_ratio else ''
+    wandb_run_name = f"{args.dataset}_{args.world_feat}{drop_tag}_{run_timestamp}"
     wandb_run = wandb.init(entity=WANDB_ENTITY, project=WANDB_PROJECT, name=wandb_run_name,
                            group=args.dataset, job_type='eval' if args.resume is not None else 'train',
                            config=wandb_config)
